@@ -5,6 +5,9 @@ import (
 	"github.com/cactus/go-statsd-client/statsd"
 	"gopkg.in/mgo.v2"
 	"gopkg.in/mgo.v2/bson"
+	"os"
+	"os/signal"
+	"syscall"
 	"time"
 )
 
@@ -65,12 +68,26 @@ type ServerStatus struct {
 	OpcountersReplicaSet Opcounters          "opcountersRepl"
 }
 
-func serverStatus() ServerStatus {
-	session, err := mgo.Dial("localhost")
+func serverStatus(mongo_config Mongo) ServerStatus {
+	info := mgo.DialInfo{
+		Addrs:   mongo_config.Addresses,
+		Direct:  false,
+		Timeout: time.Second * 30,
+	}
+
+	session, err := mgo.DialWithInfo(&info)
 	if err != nil {
 		panic(err)
 	}
 	defer session.Close()
+
+	if len(mongo_config.User) > 0 {
+		cred := mgo.Credential{Username: mongo_config.User, Password: mongo_config.Pass}
+		err = session.Login(&cred)
+		if err != nil {
+			panic(err)
+		}
+	}
 
 	// Optional. Switch the session to a monotonic behavior.
 	session.SetMode(mgo.Monotonic, true)
@@ -228,9 +245,10 @@ func pushExtraInfo(client statsd.Client, info ExtraInfo) error {
 	return nil
 }
 
-func pushStats(status ServerStatus) error {
-	prefix := fmt.Sprintf("statsd.mongodb.%s", status.Host)
-	client, err := statsd.New("127.0.0.1:8125", prefix)
+func pushStats(statsd_config Statsd, status ServerStatus) error {
+	prefix := fmt.Sprintf("statsd.mongodb.%s.%s.%s", statsd_config.Env, statsd_config.Cluster, status.Host)
+	host_port := fmt.Sprintf("%s:%d", statsd_config.Host, statsd_config.Port)
+	client, err := statsd.New(host_port, prefix)
 	if err != nil {
 		return err
 	}
@@ -265,13 +283,15 @@ func pushStats(status ServerStatus) error {
 }
 
 func main() {
-	ticker := time.NewTicker(5 * time.Second)
+	config := LoadConfig()
+
+	ticker := time.NewTicker(config.Interval)
 	quit := make(chan struct{})
 	go func() {
 		for {
 			select {
 			case <-ticker.C:
-				err := pushStats(serverStatus())
+				err := pushStats(config.Statsd, serverStatus(config.Mongo))
 				if err != nil {
 					fmt.Println(err)
 				}
@@ -281,6 +301,10 @@ func main() {
 			}
 		}
 	}()
-	time.Sleep(30 * time.Second)
+
+	ch := make(chan os.Signal)
+	signal.Notify(ch, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT)
+	sig := <-ch
+	fmt.Println("Received " + sig.String())
 	close(quit)
 }
