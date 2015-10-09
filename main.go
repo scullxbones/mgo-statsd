@@ -99,7 +99,7 @@ func serverStatus(mongo_config Mongo) ServerStatus {
 	return s
 }
 
-func pushConnections(client statsd.Client, connections Connections) error {
+func pushConnections(client statsd.Statter, connections Connections) error {
 	var err error
 	// Connections
 	err = client.Gauge("connections.current", int64(connections.Current), 1.0)
@@ -120,7 +120,7 @@ func pushConnections(client statsd.Client, connections Connections) error {
 	return nil
 }
 
-func pushOpcounters(client statsd.Client, opscounters Opcounters) error {
+func pushOpcounters(client statsd.Statter, opscounters Opcounters) error {
 	var err error
 
 	// Ops Counters (non-RS)
@@ -157,7 +157,7 @@ func pushOpcounters(client statsd.Client, opscounters Opcounters) error {
 	return nil
 }
 
-func pushMem(client statsd.Client, mem Mem) error {
+func pushMem(client statsd.Statter, mem Mem) error {
 	var err error
 
 	err = client.Gauge("mem.resident", mem.Resident, 1.0)
@@ -183,7 +183,7 @@ func pushMem(client statsd.Client, mem Mem) error {
 	return nil
 }
 
-func pushGlobalLocks(client statsd.Client, glob GlobalLock) error {
+func pushGlobalLocks(client statsd.Statter, glob GlobalLock) error {
 	var err error
 
 	err = client.Gauge("global_lock.total_time", glob.TotalTime, 1.0)
@@ -229,7 +229,7 @@ func pushGlobalLocks(client statsd.Client, glob GlobalLock) error {
 	return nil
 }
 
-func pushExtraInfo(client statsd.Client, info ExtraInfo) error {
+func pushExtraInfo(client statsd.Statter, info ExtraInfo) error {
 	var err error
 
 	err = client.Gauge("extra.page_faults", info.PageFaults, 1.0)
@@ -248,33 +248,33 @@ func pushExtraInfo(client statsd.Client, info ExtraInfo) error {
 func pushStats(statsd_config Statsd, status ServerStatus) error {
 	prefix := fmt.Sprintf("statsd.mongodb.%s.%s.%s", statsd_config.Env, statsd_config.Cluster, status.Host)
 	host_port := fmt.Sprintf("%s:%d", statsd_config.Host, statsd_config.Port)
-	client, err := statsd.New(host_port, prefix)
+	client, err := statsd.NewClient(host_port, prefix)
 	if err != nil {
 		return err
 	}
 	defer client.Close()
 
-	err = pushConnections(*client, status.Connections)
+	err = pushConnections(client, status.Connections)
 	if err != nil {
 		return err
 	}
 
-	err = pushOpcounters(*client, status.Opcounters)
+	err = pushOpcounters(client, status.Opcounters)
 	if err != nil {
 		return err
 	}
 
-	err = pushMem(*client, status.Mem)
+	err = pushMem(client, status.Mem)
 	if err != nil {
 		return err
 	}
 
-	err = pushGlobalLocks(*client, status.GlobalLocks)
+	err = pushGlobalLocks(client, status.GlobalLocks)
 	if err != nil {
 		return err
 	}
 
-	err = pushExtraInfo(*client, status.ExtraInfo)
+	err = pushExtraInfo(client, status.ExtraInfo)
 	if err != nil {
 		return err
 	}
