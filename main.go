@@ -246,7 +246,7 @@ func pushExtraInfo(client statsd.Statter, info ExtraInfo) error {
 }
 
 func pushStats(statsd_config Statsd, status ServerStatus) error {
-	prefix := fmt.Sprintf("statsd.mongodb.%s.%s.%s", statsd_config.Env, statsd_config.Cluster, status.Host)
+	prefix := fmt.Sprintf("%s.%s.%s", statsd_config.Env, statsd_config.Cluster, status.Host)
 	host_port := fmt.Sprintf("%s:%d", statsd_config.Host, statsd_config.Port)
 	client, err := statsd.NewClient(host_port, prefix)
 	if err != nil {
