@@ -7,8 +7,12 @@ import (
 	"gopkg.in/mgo.v2/bson"
 	"os"
 	"os/signal"
+	"log"
+	str "strings"
 	"syscall"
 	"time"
+	"github.com/kr/pretty"
+	"regexp"
 )
 
 type Connections struct {
@@ -51,6 +55,40 @@ type ExtraInfo struct {
 	HeapUsageInBytes int64 "heap_usage_bytes"
 }
 
+type ReplicaInfo struct {
+	IsMaster	bool 	"ismaster"
+	Secondary	bool	"secondary"
+}
+
+type CommandCounter struct {
+	Failed  int64 "failed"
+	Total   int64 "total"
+}
+
+type CursorMetrics struct {
+	TimedOut 	int64 	"timedOut"
+	Open 		map[string]int64 "open"
+}
+
+type ServerMetrics struct {
+	Commands  		map[string]CommandCounter 	"commands"
+	Cursor    		CursorMetrics				"cursor"
+	Document  		map[string]int64 			"document"
+	Operation 		map[string]int64 			"operation"
+	QueryExecutor 	map[string]int64 			"queryExecutor"
+}
+
+type ConcurrentTransactionsInfo struct {
+	Write 	map[string]int64 "write"
+	Read 	map[string]int64 "read"
+}
+
+type WiredTigerInfo struct {
+	Cache 					 map[string]int64           "cache"
+	Connection 				 map[string]int64           "connection"
+	ConcurrentTransactions   ConcurrentTransactionsInfo "concurrentTransactions"
+}
+
 type ServerStatus struct {
 	Host                 string              "host"
 	Version              string              "version"
@@ -66,13 +104,22 @@ type ServerStatus struct {
 	GlobalLocks          GlobalLock          "globalLock"
 	Opcounters           Opcounters          "opcounters"
 	OpcountersReplicaSet Opcounters          "opcountersRepl"
+	ReplicaSet			 ReplicaInfo		 "repl"
+	Metrics 			 ServerMetrics       "metrics"
+	WiredTiger			 *WiredTigerInfo	 "wiredTiger"
 }
 
 func serverStatus(mongo_config Mongo) ServerStatus {
 	info := mgo.DialInfo{
 		Addrs:   mongo_config.Addresses,
-		Direct:  false,
-		Timeout: time.Second * 30,
+		Direct:  true,
+		Timeout: time.Second * 5,
+	}
+
+	if len(mongo_config.User) > 0 {
+		info.Username = mongo_config.User
+		info.Password = mongo_config.Pass
+		info.Source = mongo_config.AuthDb
 	}
 
 	session, err := mgo.DialWithInfo(&info)
@@ -81,20 +128,22 @@ func serverStatus(mongo_config Mongo) ServerStatus {
 	}
 	defer session.Close()
 
-	if len(mongo_config.User) > 0 {
-		cred := mgo.Credential{Username: mongo_config.User, Password: mongo_config.Pass}
+	/*if len(mongo_config.User) > 0 {
+		cred := mgo.Credential{Username: mongo_config.User, Password: mongo_config.Pass, Source: mongo_config.AuthDb}
 		err = session.Login(&cred)
 		if err != nil {
 			panic(err)
 		}
-	}
+	}*/
 
 	// Optional. Switch the session to a monotonic behavior.
 	session.SetMode(mgo.Monotonic, true)
 
 	var s ServerStatus
 	if err := session.Run("serverStatus", &s); err != nil {
-		panic(err)
+		log.Printf("Error connecting to %v: %v\n", info,err)
+		//panic(err)
+		return ServerStatus{}
 	}
 	return s
 }
@@ -229,7 +278,7 @@ func pushGlobalLocks(client statsd.Statter, glob GlobalLock) error {
 	return nil
 }
 
-func pushExtraInfo(client statsd.Statter, info ExtraInfo) error {
+func pushExtraInfo(client statsd.Statter, info ExtraInfo, rinfo ReplicaInfo) error {
 	var err error
 
 	err = client.Gauge("extra.page_faults", info.PageFaults, 1.0)
@@ -242,21 +291,141 @@ func pushExtraInfo(client statsd.Statter, info ExtraInfo) error {
 		return err
 	}
 
+	if rinfo.IsMaster {
+		err = client.Gauge("extra.is_master", 1, 1.0)
+	} else {
+		err = client.Gauge("extra.is_master", 0, 1.0)
+	}
+	if err != nil {
+		return err
+	}
+
+	if rinfo.Secondary {
+		err = client.Gauge("extra.is_secondary", 1, 1.0)
+	} else {
+		err = client.Gauge("extra.is_secondary", 0, 1.0)
+	}
+	if err != nil {
+		return err
+	}
+
 	return nil
 }
 
+
+func pushMetrics(client statsd.Statter, serverMetrics ServerMetrics) error {
+	var err error
+	for k,v := range serverMetrics.Commands {
+		if v.Failed > 0 || v.Total > 0 {
+			err = client.Gauge(fmt.Sprintf("metrics.commands.%s.%s", k, "failed"), v.Failed, 1.0)
+			if err != nil {
+				return err
+			}
+			err = client.Gauge(fmt.Sprintf("metrics.commands.%s.%s", k, "total"), v.Total, 1.0)
+			if err != nil {
+				return err
+			}
+		}
+	}
+
+
+	err = client.Gauge("metrics.cursor.timedout", serverMetrics.Cursor.TimedOut, 1.0)
+	if err != nil {
+		return err
+	}
+
+	for k,v := range serverMetrics.Cursor.Open {
+		err = client.Gauge(fmt.Sprintf("metrics.cursor.open-%s",k), v, 1.0)
+		if err != nil {
+			return err
+		}
+	}
+
+	for k,v := range serverMetrics.Document {
+		err = client.Gauge(fmt.Sprintf("metrics.document.%s",k), v, 1.0)
+		if err != nil {
+			return err
+		}
+	}
+	for k,v := range serverMetrics.Operation {
+		err = client.Gauge(fmt.Sprintf("metrics.operation.%s",k), v, 1.0)
+		if err != nil {
+			return err
+		}
+	}
+
+	for k,v := range serverMetrics.QueryExecutor {
+		err = client.Gauge(fmt.Sprintf("metrics.query_executor.%s",k), v, 1.0)
+		if err != nil {
+			return err
+		}
+	}
+
+
+	return nil
+}
+
+var badMetricChars = regexp.MustCompile("[^-a-zA-Z_]+")
+func pushWTInfo(client statsd.Statter, wtinfo *WiredTigerInfo) error {
+	var err error
+	if wtinfo == nil {
+		return nil // WiredTiger not enabled
+	}
+	log.Println("WiredTiger data present!")
+	for k,v := range wtinfo.Cache {
+		cleanKey := badMetricChars.ReplaceAllLiteralString(k, "_") //str.Replace(k," ","_",-1)
+		err = client.Gauge(fmt.Sprintf("wiredtiger.cache.%s", cleanKey), v, 1.0)
+		if err != nil {
+			return err
+		}
+
+	}
+
+	for k,v := range wtinfo.ConcurrentTransactions.Read {
+		cleanKey := badMetricChars.ReplaceAllLiteralString(k, "_")
+		err = client.Gauge(fmt.Sprintf("wiredtiger.conc_txn_rd.%s", cleanKey), v, 1.0)
+		if err != nil {
+			return err
+		}
+	}
+
+	for k,v := range wtinfo.ConcurrentTransactions.Write {
+		cleanKey := badMetricChars.ReplaceAllLiteralString(k, "_")
+		err = client.Gauge(fmt.Sprintf("wiredtiger.conc_txn_wr.%s", cleanKey), v, 1.0)
+		if err != nil {
+			return err
+		}
+	}
+
+	for k,v := range wtinfo.Connection {
+		cleanKey := badMetricChars.ReplaceAllLiteralString(k, "_")
+		err = client.Gauge(fmt.Sprintf("wiredtiger.conn.%s", cleanKey), v, 1.0)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+
 func pushStats(statsd_config Statsd, status ServerStatus) error {
+	if status.Host == "" {
+		return nil // This means we didn't connect, but lets silently skip this cycle
+	}
 	prefix := statsd_config.Env
 	if len(statsd_config.Cluster) > 0 {
 		prefix = fmt.Sprintf("%s.%s", prefix, statsd_config.Cluster)
 	}
-	prefix = fmt.Sprintf("%s.%s", prefix, status.Host)
+	prefix = fmt.Sprintf("%s.%s", prefix, str.Replace(str.Replace(status.Host,":","-",-1),".","_",-1))
 	host_port := fmt.Sprintf("%s:%d", statsd_config.Host, statsd_config.Port)
 	client, err := statsd.NewClient(host_port, prefix)
 	if err != nil {
 		return err
 	}
 	defer client.Close()
+	//log.Printf("Statsd Env: %v, Statsd Cluster: %v, Statsd prefix: %v\n",statsd_config.Env, statsd_config.Cluster, prefix)
+	log.Println(pretty.Sprintf("Mongo ServerStatus: \n%v\n", status))
 
 	err = pushConnections(client, status.Connections)
 	if err != nil {
@@ -278,7 +447,17 @@ func pushStats(statsd_config Statsd, status ServerStatus) error {
 		return err
 	}
 
-	err = pushExtraInfo(client, status.ExtraInfo)
+	err = pushExtraInfo(client, status.ExtraInfo, status.ReplicaSet)
+	if err != nil {
+		return err
+	}
+
+	err = pushMetrics(client, status.Metrics)
+	if err != nil {
+		return err
+	}
+
+	err = pushWTInfo(client, status.WiredTiger)
 	if err != nil {
 		return err
 	}
@@ -289,23 +468,33 @@ func pushStats(statsd_config Statsd, status ServerStatus) error {
 func main() {
 	config := LoadConfig()
 
-	ticker := time.NewTicker(config.Interval)
-	quit := make(chan struct{})
-	go func() {
-		for {
-			select {
-			case <-ticker.C:
-				err := pushStats(config.Statsd, serverStatus(config.Mongo))
-				if err != nil {
-					fmt.Println(err)
-				}
-			case <-quit:
-				ticker.Stop()
-				return
-			}
-		}
-	}()
 
+	quit := make(chan struct{})
+	for i,server := range config.Mongo.Addresses {
+		mgocnf := Mongo{
+			Addresses: []string{server},
+			User: config.Mongo.User,
+			Pass: config.Mongo.Pass,
+			AuthDb: config.Mongo.AuthDb,
+		}
+		ticker := time.NewTicker(config.Interval)
+		go func(cnf Mongo, num int) {
+			for {
+				select {
+				case <-ticker.C:
+					log.Printf("[%v] Starting stats for address %v \n", num, cnf.Addresses)
+					err := pushStats(config.Statsd, serverStatus(cnf))
+					if err != nil {
+						fmt.Printf("[%v] ERROR: %v\n",num, err)
+					}
+					log.Printf("[%v] Done pushing stats for address %v\n", num, cnf.Addresses)
+				case <-quit:
+					ticker.Stop()
+					return
+				}
+			}
+		}(mgocnf, i)
+	}
 	ch := make(chan os.Signal)
 	signal.Notify(ch, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT)
 	sig := <-ch

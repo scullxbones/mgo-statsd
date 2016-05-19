@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/vharitonsky/iniflags"
 	"time"
+	"os"
 )
 
 type strings []string
@@ -13,6 +14,7 @@ type Mongo struct {
 	Addresses []string
 	User      string
 	Pass      string
+	AuthDb	  string
 }
 
 type Statsd struct {
@@ -43,10 +45,11 @@ func LoadConfig() Config {
 	var (
 		mongo_user     = flag.String("mongo_user", "", "MongoDB User")
 		mongo_pass     = flag.String("mongo_pass", "", "MongoDB Password")
+		mongo_auth_db  = flag.String("mongo_auth_db", "admin", "MongoDB Authentication DB")
 		statsd_host    = flag.String("statsd_host", "localhost", "StatsD Host")
 		statsd_port    = flag.Int("statsd_port", 8125, "StatsD Port")
-		statsd_env     = flag.String("statsd_env", "dev", "StatsD metric environment prefix")
-		statsd_cluster = flag.String("statsd_cluster", "0", "StatsD metric cluster prefix")
+		statsd_env     = flag.String("statsd_env", os.Getenv("VIVINT_CONFIG_PROFILE"), "StatsD metric environment prefix")
+		statsd_cluster = flag.String("statsd_cluster", "", "StatsD metric cluster prefix")
 		interval       = flag.Duration("interval", 5*time.Second, "Polling interval")
 	)
 
@@ -61,6 +64,7 @@ func LoadConfig() Config {
 			Addresses: mongo_addresses,
 			User:      *mongo_user,
 			Pass:      *mongo_pass,
+			AuthDb:    *mongo_auth_db,
 		},
 		Statsd: Statsd{
 			Host:    *statsd_host,
