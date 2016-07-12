@@ -18,3 +18,23 @@ unauthorized fashion to a mongodb instance on localhost.
 ```
 ./mgo-statsd  -statsd_host="statsd.hostname"
 ```
+
+## Docker container
+
+Can be built from this repo using:
+
+```
+$ docker build -t mgo-statsd .
+```
+
+Or can be pulled from docker hub via:
+```
+$ docker pull scullxbones/mgo-statsd
+```
+
+and run (assuming an already running MongoDB) using:
+```
+$ docker run -dit --name mgo-statsd mgo-statsd [optional parameters]
+```
+
+
