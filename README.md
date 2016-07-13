@@ -21,20 +21,14 @@ unauthorized fashion to a mongodb instance on localhost.
 
 ## Docker container
 
-Can be built from this repo using:
+Launch a container using the image on Docker Hub built from this source repo:
+```
+$ docker run -dit --name mgo-statsd scullxbones/mgo-statsd [optional parameters]
+```
 
+To build a local image from this repo using:
 ```
 $ docker build -t mgo-statsd .
-```
-
-Or can be pulled from docker hub via:
-```
-$ docker pull scullxbones/mgo-statsd
-```
-
-and run (assuming an already running MongoDB) using:
-```
-$ docker run -dit --name mgo-statsd mgo-statsd [optional parameters]
 ```
 
 
