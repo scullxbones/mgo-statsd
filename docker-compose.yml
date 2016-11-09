@@ -1,0 +1,13 @@
+mongo:
+  image: mongo:3
+  log_driver: none
+
+mgo-statsd:
+  build: .
+  command: --mongo_address mongo -statsd_host statsd -interval 1s -statsd_env test -statsd_cluster test_mongo
+  links:
+    - mongo
+    - statsd
+
+statsd:
+  image: pataquets/statsd-debug
