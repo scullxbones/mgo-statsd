@@ -49,7 +49,7 @@ func LoadConfig() Config {
 		statsd_host    = flag.String("statsd_host", "localhost", "StatsD Host")
 		statsd_port    = flag.Int("statsd_port", 8125, "StatsD Port")
 		statsd_env     = flag.String("statsd_env", os.Getenv("VIVINT_CONFIG_PROFILE"), "StatsD metric environment prefix")
-		statsd_cluster = flag.String("statsd_cluster", "", "StatsD metric cluster prefix")
+		statsd_cluster = flag.String("statsd_cluster", "unknown", "StatsD metric cluster prefix")
 		interval       = flag.Duration("interval", 5*time.Second, "Polling interval")
 	)
 

@@ -124,7 +124,8 @@ func serverStatus(mongo_config Mongo) ServerStatus {
 
 	session, err := mgo.DialWithInfo(&info)
 	if err != nil {
-		panic(err)
+		log.Printf("Error connecting to mongo %v: %v\n", info, err)
+		return ServerStatus{}
 	}
 	defer session.Close()
 
@@ -411,7 +412,7 @@ func pushWTInfo(client statsd.Statter, wtinfo *WiredTigerInfo) error {
 
 func pushStats(statsd_config Statsd, status ServerStatus) error {
 	if status.Host == "" {
-		return nil // This means we didn't connect, but lets silently skip this cycle
+		return nil // This means we didn't connect, so lets silently skip this cycle
 	}
 	prefix := statsd_config.Env
 	if len(statsd_config.Cluster) > 0 {
