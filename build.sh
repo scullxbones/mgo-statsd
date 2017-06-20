@@ -11,6 +11,7 @@ go_is_not_installed=`which go`
 go get github.com/cactus/go-statsd-client/statsd
 go get github.com/vharitonsky/iniflags
 go get gopkg.in/mgo.v2
+go get github.com/kr/pretty
 
 # now build it
 go build
