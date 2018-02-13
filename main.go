@@ -2,124 +2,125 @@ package main
 
 import (
 	"fmt"
-	"github.com/cactus/go-statsd-client/statsd"
-	"gopkg.in/mgo.v2"
-	"gopkg.in/mgo.v2/bson"
+	"log"
 	"os"
 	"os/signal"
-	"log"
+	"regexp"
 	str "strings"
 	"syscall"
 	"time"
+
+	"github.com/cactus/go-statsd-client/statsd"
 	"github.com/kr/pretty"
-	"regexp"
+	"gopkg.in/mgo.v2"
+	"gopkg.in/mgo.v2/bson"
 )
 
 type Connections struct {
-	Current      int64 "current"
-	Available    int64 "available"
-	TotalCreated int64 "totalCreated"
+	Current      int64 `metric:"current"`
+	Available    int64 `metric:"available"`
+	TotalCreated int64 `metric:"totalCreated"`
 }
 
 type Mem struct {
-	Resident          int64 "resident"
-	Virtual           int64 "virtual"
-	Mapped            int64 "mapped"
-	MappedWithJournal int64 "mappedWithJournal"
+	Resident          int64 `metric:"resident"`
+	Virtual           int64 `metric:"virtual"`
+	Mapped            int64 `metric:"mapped"`
+	MappedWithJournal int64 `metric:"mappedWithJournal"`
 }
 
 type RWT struct {
-	Readers int64 "readers"
-	Writers int64 "writers"
-	Total   int64 "total"
+	Readers int64 `metric:"readers"`
+	Writers int64 `metric:"writers"`
+	Total   int64 `metric:"total"`
 }
 
 type GlobalLock struct {
-	TotalTime     int64 "totalTime"
-	LockTime      int64 "lockTime"
-	CurrentQueue  RWT   "currentQueue"
-	ActiveClients RWT   "activeClients"
+	TotalTime     int64 `metric:"totalTime"`
+	LockTime      int64 `metric:"lockTime"`
+	CurrentQueue  RWT   `metric:"currentQueue"`
+	ActiveClients RWT   `metric:"activeClients"`
 }
 
 type Opcounters struct {
-	Insert  int64 "insert"
-	Query   int64 "query"
-	Update  int64 "update"
-	Delete  int64 "delete"
-	GetMore int64 "getmore"
-	Command int64 "command"
+	Insert  int64 `metric:"insert"`
+	Query   int64 `metric:"query"`
+	Update  int64 `metric:"update"`
+	Delete  int64 `metric:"delete"`
+	GetMore int64 `metric:"getmore"`
+	Command int64 `metric:"command"`
 }
 
 type ExtraInfo struct {
-	PageFaults       int64 "page_faults"
-	HeapUsageInBytes int64 "heap_usage_bytes"
+	PageFaults       int64 `metric:"page_faults"`
+	HeapUsageInBytes int64 `metric:"heap_usage_bytes"`
 }
 
 type ReplicaInfo struct {
-	IsMaster	bool 	"ismaster"
-	Secondary	bool	"secondary"
+	IsMaster  bool `metric:"ismaster"`
+	Secondary bool `metric:"secondary"`
 }
 
 type CommandCounter struct {
-	Failed  int64 "failed"
-	Total   int64 "total"
+	Failed int64 `metric:"failed"`
+	Total  int64 `metric:"total"`
 }
 
 type CursorMetrics struct {
-	TimedOut 	int64 	"timedOut"
-	Open 		map[string]int64 "open"
+	TimedOut int64            `metric:"timedOut"`
+	Open     map[string]int64 `metric:"open"`
 }
 
 type ServerMetrics struct {
-	Commands  		map[string]CommandCounter 	"commands"
-	Cursor    		CursorMetrics				"cursor"
-	Document  		map[string]int64 			"document"
-	Operation 		map[string]int64 			"operation"
-	QueryExecutor 	map[string]int64 			"queryExecutor"
+	Commands      map[string]CommandCounter `metric:"commands"`
+	Cursor        CursorMetrics             `metric:"cursor"`
+	Document      map[string]int64          `metric:"document"`
+	Operation     map[string]int64          `metric:"operation"`
+	QueryExecutor map[string]int64          `metric:"queryExecutor"`
 }
 
 type ConcurrentTransactionsInfo struct {
-	Write 	map[string]int64 "write"
-	Read 	map[string]int64 "read"
+	Write map[string]int64 `metric:"write"`
+	Read  map[string]int64 `metric:"read"`
 }
 
 type WiredTigerInfo struct {
-	Cache 					 map[string]int64           "cache"
-	Connection 				 map[string]int64           "connection"
-	ConcurrentTransactions   ConcurrentTransactionsInfo "concurrentTransactions"
+	Cache                  map[string]int64           `metric:"cache"`
+	Connection             map[string]int64           `metric:"connection"`
+	ConcurrentTransactions ConcurrentTransactionsInfo `metric:"concurrentTransactions"`
 }
 
 type ServerStatus struct {
-	Host                 string              "host"
-	Version              string              "version"
-	Process              string              "process"
-	Pid                  int64               "pid"
-	Uptime               int64               "uptime"
-	UptimeInMillis       int64               "uptimeMillis"
-	UptimeEstimate       int64               "uptimeEstimate"
-	LocalTime            bson.MongoTimestamp "localTime"
-	Connections          Connections         "connections"
-	ExtraInfo            ExtraInfo           "extra_info"
-	Mem                  Mem                 "mem"
-	GlobalLocks          GlobalLock          "globalLock"
-	Opcounters           Opcounters          "opcounters"
-	OpcountersReplicaSet Opcounters          "opcountersRepl"
-	ReplicaSet			 ReplicaInfo		 "repl"
-	Metrics 			 ServerMetrics       "metrics"
-	WiredTiger			 *WiredTigerInfo	 "wiredTiger"
+	Host                 string              `metric:"host"`
+	Version              string              `metric:"version"`
+	Process              string              `metric:"process"`
+	Pid                  int64               `metric:"pid"`
+	Uptime               int64               `metric:"uptime"`
+	UptimeInMillis       int64               `metric:"uptimeMillis"`
+	UptimeEstimate       int64               `metric:"uptimeEstimate"`
+	LocalTime            bson.MongoTimestamp `metric:"localTime"`
+	Connections          Connections         `metric:"connections"`
+	ExtraInfo            ExtraInfo           `metric:"extra_info"`
+	Mem                  Mem                 `metric:"mem"`
+	GlobalLocks          GlobalLock          `metric:"globalLock"`
+	Opcounters           Opcounters          `metric:"opcounters"`
+	OpcountersReplicaSet Opcounters          `metric:"opcountersRepl"`
+	ReplicaSet           ReplicaInfo         `metric:"repl"`
+	Metrics              ServerMetrics       `metric:"metrics"`
+	WiredTiger           *WiredTigerInfo     `metric:"wiredTiger"`
 }
 
-func serverStatus(mongo_config Mongo) ServerStatus {
+func serverStatus(mongoConfig Mongo) ServerStatus {
 	info := mgo.DialInfo{
-		Addrs:   mongo_config.Addresses,
+		Addrs:   mongoConfig.Addresses,
 		Direct:  true,
 		Timeout: time.Second * 5,
 	}
 
-	if len(mongo_config.User) > 0 {
-		info.Username = mongo_config.User
-		info.Password = mongo_config.Pass
-		info.Source = mongo_config.AuthDb
+	if len(mongoConfig.User) > 0 {
+		info.Username = mongoConfig.User
+		info.Password = mongoConfig.Pass
+		info.Source = mongoConfig.AuthDb
 	}
 
 	session, err := mgo.DialWithInfo(&info)
@@ -142,7 +143,7 @@ func serverStatus(mongo_config Mongo) ServerStatus {
 
 	var s ServerStatus
 	if err := session.Run("serverStatus", &s); err != nil {
-		log.Printf("Error connecting to %v: %v\n", info,err)
+		log.Printf("Error connecting to %v: %v\n", info, err)
 		//panic(err)
 		return ServerStatus{}
 	}
@@ -313,10 +314,9 @@ func pushExtraInfo(client statsd.Statter, info ExtraInfo, rinfo ReplicaInfo) err
 	return nil
 }
 
-
 func pushMetrics(client statsd.Statter, serverMetrics ServerMetrics) error {
 	var err error
-	for k,v := range serverMetrics.Commands {
+	for k, v := range serverMetrics.Commands {
 		if v.Failed > 0 || v.Total > 0 {
 			err = client.Gauge(fmt.Sprintf("metrics.commands.%s.%s", k, "failed"), v.Failed, 1.0)
 			if err != nil {
@@ -329,51 +329,50 @@ func pushMetrics(client statsd.Statter, serverMetrics ServerMetrics) error {
 		}
 	}
 
-
 	err = client.Gauge("metrics.cursor.timedout", serverMetrics.Cursor.TimedOut, 1.0)
 	if err != nil {
 		return err
 	}
 
-	for k,v := range serverMetrics.Cursor.Open {
-		err = client.Gauge(fmt.Sprintf("metrics.cursor.open-%s",k), v, 1.0)
+	for k, v := range serverMetrics.Cursor.Open {
+		err = client.Gauge(fmt.Sprintf("metrics.cursor.open-%s", k), v, 1.0)
 		if err != nil {
 			return err
 		}
 	}
 
-	for k,v := range serverMetrics.Document {
-		err = client.Gauge(fmt.Sprintf("metrics.document.%s",k), v, 1.0)
+	for k, v := range serverMetrics.Document {
+		err = client.Gauge(fmt.Sprintf("metrics.document.%s", k), v, 1.0)
 		if err != nil {
 			return err
 		}
 	}
-	for k,v := range serverMetrics.Operation {
-		err = client.Gauge(fmt.Sprintf("metrics.operation.%s",k), v, 1.0)
-		if err != nil {
-			return err
-		}
-	}
-
-	for k,v := range serverMetrics.QueryExecutor {
-		err = client.Gauge(fmt.Sprintf("metrics.query_executor.%s",k), v, 1.0)
+	for k, v := range serverMetrics.Operation {
+		err = client.Gauge(fmt.Sprintf("metrics.operation.%s", k), v, 1.0)
 		if err != nil {
 			return err
 		}
 	}
 
+	for k, v := range serverMetrics.QueryExecutor {
+		err = client.Gauge(fmt.Sprintf("metrics.query_executor.%s", k), v, 1.0)
+		if err != nil {
+			return err
+		}
+	}
 
 	return nil
 }
 
 var badMetricChars = regexp.MustCompile("[^-a-zA-Z_]+")
+
 func pushWTInfo(client statsd.Statter, wtinfo *WiredTigerInfo) error {
 	var err error
 	if wtinfo == nil {
 		return nil // WiredTiger not enabled
 	}
 	log.Println("WiredTiger data present!")
-	for k,v := range wtinfo.Cache {
+	for k, v := range wtinfo.Cache {
 		cleanKey := badMetricChars.ReplaceAllLiteralString(k, "_") //str.Replace(k," ","_",-1)
 		err = client.Gauge(fmt.Sprintf("wiredtiger.cache.%s", cleanKey), v, 1.0)
 		if err != nil {
@@ -382,7 +381,7 @@ func pushWTInfo(client statsd.Statter, wtinfo *WiredTigerInfo) error {
 
 	}
 
-	for k,v := range wtinfo.ConcurrentTransactions.Read {
+	for k, v := range wtinfo.ConcurrentTransactions.Read {
 		cleanKey := badMetricChars.ReplaceAllLiteralString(k, "_")
 		err = client.Gauge(fmt.Sprintf("wiredtiger.conc_txn_rd.%s", cleanKey), v, 1.0)
 		if err != nil {
@@ -390,7 +389,7 @@ func pushWTInfo(client statsd.Statter, wtinfo *WiredTigerInfo) error {
 		}
 	}
 
-	for k,v := range wtinfo.ConcurrentTransactions.Write {
+	for k, v := range wtinfo.ConcurrentTransactions.Write {
 		cleanKey := badMetricChars.ReplaceAllLiteralString(k, "_")
 		err = client.Gauge(fmt.Sprintf("wiredtiger.conc_txn_wr.%s", cleanKey), v, 1.0)
 		if err != nil {
@@ -398,7 +397,7 @@ func pushWTInfo(client statsd.Statter, wtinfo *WiredTigerInfo) error {
 		}
 	}
 
-	for k,v := range wtinfo.Connection {
+	for k, v := range wtinfo.Connection {
 		cleanKey := badMetricChars.ReplaceAllLiteralString(k, "_")
 		err = client.Gauge(fmt.Sprintf("wiredtiger.conn.%s", cleanKey), v, 1.0)
 		if err != nil {
@@ -409,24 +408,25 @@ func pushWTInfo(client statsd.Statter, wtinfo *WiredTigerInfo) error {
 	return nil
 }
 
-
-func pushStats(statsd_config Statsd, status ServerStatus) error {
+func pushStats(statsdConfig Statsd, status ServerStatus, verbose bool) error {
 	if status.Host == "" {
 		return nil // This means we didn't connect, so lets silently skip this cycle
 	}
-	prefix := statsd_config.Env
-	if len(statsd_config.Cluster) > 0 {
-		prefix = fmt.Sprintf("%s.%s", prefix, statsd_config.Cluster)
+	prefix := statsdConfig.Env
+	if len(statsdConfig.Cluster) > 0 {
+		prefix = fmt.Sprintf("%s.%s", prefix, statsdConfig.Cluster)
 	}
-	prefix = fmt.Sprintf("%s.%s", prefix, str.Replace(str.Replace(status.Host,":","-",-1),".","_",-1))
-	host_port := fmt.Sprintf("%s:%d", statsd_config.Host, statsd_config.Port)
-	client, err := statsd.NewClient(host_port, prefix)
+	prefix = fmt.Sprintf("%s.%s", prefix, str.Replace(str.Replace(status.Host, ":", "-", -1), ".", "_", -1))
+	hostPort := fmt.Sprintf("%s:%d", statsdConfig.Host, statsdConfig.Port)
+	client, err := statsd.NewClient(hostPort, prefix)
 	if err != nil {
 		return err
 	}
 	defer client.Close()
 	//log.Printf("Statsd Env: %v, Statsd Cluster: %v, Statsd prefix: %v\n",statsd_config.Env, statsd_config.Cluster, prefix)
-	log.Println(pretty.Sprintf("Mongo ServerStatus: \n%v\n", status))
+	if verbose {
+		log.Println(pretty.Sprintf("Mongo ServerStatus: \n%v\n", status))
+	}
 
 	err = pushConnections(client, status.Connections)
 	if err != nil {
@@ -469,26 +469,29 @@ func pushStats(statsd_config Statsd, status ServerStatus) error {
 func main() {
 	config := LoadConfig()
 
-
 	quit := make(chan struct{})
-	for i,server := range config.Mongo.Addresses {
+	for i, server := range config.Mongo.Addresses {
 		mgocnf := Mongo{
 			Addresses: []string{server},
-			User: config.Mongo.User,
-			Pass: config.Mongo.Pass,
-			AuthDb: config.Mongo.AuthDb,
+			User:      config.Mongo.User,
+			Pass:      config.Mongo.Pass,
+			AuthDb:    config.Mongo.AuthDb,
 		}
 		ticker := time.NewTicker(config.Interval)
 		go func(cnf Mongo, num int) {
 			for {
 				select {
 				case <-ticker.C:
-					log.Printf("[%v] Starting stats for address %v \n", num, cnf.Addresses)
-					err := pushStats(config.Statsd, serverStatus(cnf))
-					if err != nil {
-						fmt.Printf("[%v] ERROR: %v\n",num, err)
+					if config.Verbose {
+						log.Printf("[%v] Starting stats for address %v \n", num, cnf.Addresses)
 					}
-					log.Printf("[%v] Done pushing stats for address %v\n", num, cnf.Addresses)
+					err := pushStats(config.Statsd, serverStatus(cnf), config.Verbose)
+					if err != nil {
+						log.Printf("[%v] ERROR: %v\n", num, err)
+					}
+					if config.Verbose {
+						log.Printf("[%v] Done pushing stats for address %v\n", num, cnf.Addresses)
+					}
 				case <-quit:
 					ticker.Stop()
 					return
@@ -499,6 +502,6 @@ func main() {
 	ch := make(chan os.Signal)
 	signal.Notify(ch, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT)
 	sig := <-ch
-	fmt.Println("Received " + sig.String())
+	log.Printf("Received signal [%s]", sig.String())
 	close(quit)
 }
