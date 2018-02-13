@@ -8,10 +8,7 @@ go_is_not_installed=`which go`
 : ${GOPATH:?"GOPATH not defined"}
 
 # install the deps.  should use a build tool...
-go get github.com/cactus/go-statsd-client/statsd
-go get github.com/vharitonsky/iniflags
-go get gopkg.in/mgo.v2
-go get github.com/kr/pretty
+dep ensure
 
 # now build it
 go build
