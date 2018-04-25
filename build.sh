@@ -11,4 +11,4 @@ go_is_not_installed=`which go`
 dep ensure
 
 # now build it
-go build
+go build cmd/mgo-statsd.go

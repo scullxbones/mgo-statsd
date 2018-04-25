@@ -1,4 +1,4 @@
-package main
+package mstatsd
 
 import (
 	"flag"
