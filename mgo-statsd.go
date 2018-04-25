@@ -1,13 +1,10 @@
-package main
+package mstatsd
 
 import (
 	"fmt"
 	"log"
-	"os"
-	"os/signal"
 	"regexp"
 	str "strings"
-	"syscall"
 	"time"
 
 	"github.com/cactus/go-statsd-client/statsd"
@@ -110,7 +107,7 @@ type ServerStatus struct {
 	WiredTiger           *WiredTigerInfo     `metric:"wiredTiger"`
 }
 
-func serverStatus(mongoConfig Mongo) ServerStatus {
+func GetServerStatus(mongoConfig Mongo) ServerStatus {
 	info := mgo.DialInfo{
 		Addrs:   mongoConfig.Addresses,
 		Direct:  true,
@@ -408,7 +405,7 @@ func pushWTInfo(client statsd.Statter, wtinfo *WiredTigerInfo) error {
 	return nil
 }
 
-func pushStats(statsdConfig Statsd, status ServerStatus, verbose bool) error {
+func PushStats(statsdConfig Statsd, status ServerStatus, verbose bool) error {
 	if status.Host == "" {
 		return nil // This means we didn't connect, so lets silently skip this cycle
 	}
@@ -464,44 +461,4 @@ func pushStats(statsdConfig Statsd, status ServerStatus, verbose bool) error {
 	}
 
 	return nil
-}
-
-func main() {
-	config := LoadConfig()
-
-	quit := make(chan struct{})
-	for i, server := range config.Mongo.Addresses {
-		mgocnf := Mongo{
-			Addresses: []string{server},
-			User:      config.Mongo.User,
-			Pass:      config.Mongo.Pass,
-			AuthDb:    config.Mongo.AuthDb,
-		}
-		ticker := time.NewTicker(config.Interval)
-		go func(cnf Mongo, num int) {
-			for {
-				select {
-				case <-ticker.C:
-					if config.Verbose {
-						log.Printf("[%v] Starting stats for address %v \n", num, cnf.Addresses)
-					}
-					err := pushStats(config.Statsd, serverStatus(cnf), config.Verbose)
-					if err != nil {
-						log.Printf("[%v] ERROR: %v\n", num, err)
-					}
-					if config.Verbose {
-						log.Printf("[%v] Done pushing stats for address %v\n", num, cnf.Addresses)
-					}
-				case <-quit:
-					ticker.Stop()
-					return
-				}
-			}
-		}(mgocnf, i)
-	}
-	ch := make(chan os.Signal)
-	signal.Notify(ch, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT)
-	sig := <-ch
-	log.Printf("Received signal [%s]", sig.String())
-	close(quit)
 }
