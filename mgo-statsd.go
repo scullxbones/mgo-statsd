@@ -107,6 +107,7 @@ type ServerStatus struct {
 	WiredTiger           *WiredTigerInfo     `metric:"wiredTiger"`
 }
 
+// GetSession creates and configures a new mgo.Session
 func GetSession(mongoConfig Mongo, server string) (*mgo.Session, error) {
 	dialInfo := mgo.DialInfo{
 		Addrs:   []string{server},
@@ -129,6 +130,7 @@ func GetSession(mongoConfig Mongo, server string) (*mgo.Session, error) {
 	return session, nil
 }
 
+// GetServerStatus returns a struct of the MongoDB 'serverStatus' command response
 func GetServerStatus(session *mgo.Session) *ServerStatus {
 	if session == nil {
 		return nil
