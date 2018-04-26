@@ -114,7 +114,7 @@ func GetServerStatus(session *mgo.Session) *ServerStatus {
 	session.SetMode(mgo.Monotonic, true)
 
 	var s *ServerStatus
-	if err := session.Run("serverStatus", &s); err != nil {
+	if err := session.Run("serverStatus", s); err != nil {
 		log.Printf("Error running 'serverStatus' command: %v\n", err)
 		return s
 	}
