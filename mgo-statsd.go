@@ -118,15 +118,21 @@ func GetSession(mongoConfig Mongo, server string) (*mgo.Session, error) {
 		dialInfo.Password = mongoConfig.Pass
 		dialInfo.Source = mongoConfig.AuthDb
 	}
-	return mgo.DialWithInfo(&dialInfo)
+	session, err := mgo.DialWithInfo(&dialInfo)
+	if err != nil {
+		return nil, err
+	}
+
+	// Optional. Switch the session to a monotonic behavior.
+	session.SetMode(mgo.Monotonic, true)
+
+	return session, nil
 }
 
 func GetServerStatus(session *mgo.Session) *ServerStatus {
 	if session == nil {
 		return nil
 	}
-	// Optional. Switch the session to a monotonic behavior.
-	session.SetMode(mgo.Monotonic, true)
 
 	var s *ServerStatus
 	if err := session.Run("serverStatus", &s); err != nil {
