@@ -16,21 +16,9 @@ func main() {
 
 	quit := make(chan struct{})
 	for i, server := range config.Mongo.Addresses {
-		dialInfo := mgo.DialInfo{
-			Addrs:   []string{server},
-			Direct:  true,
-			Timeout: time.Second * 5,
-		}
-
-		if len(config.Mongo.User) > 0 {
-			dialInfo.Username = config.Mongo.User
-			dialInfo.Password = config.Mongo.Pass
-			dialInfo.Source = config.Mongo.AuthDb
-		}
-
-		session, err := mgo.DialWithInfo(&dialInfo)
+		session, err := mstatsd.GetSession(config.Mongo, server)
 		if err != nil {
-			log.Printf("Error connecting to mongo %v: %v\n", dialInfo, err)
+			log.Printf("Error connecting to mongo %s: %v\n", server, err)
 			return
 		}
 		defer session.Close()

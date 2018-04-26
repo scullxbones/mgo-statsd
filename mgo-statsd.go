@@ -5,6 +5,7 @@ import (
 	"log"
 	"regexp"
 	str "strings"
+	"time"
 
 	"github.com/cactus/go-statsd-client/statsd"
 	"github.com/kr/pretty"
@@ -104,6 +105,20 @@ type ServerStatus struct {
 	ReplicaSet           ReplicaInfo         `metric:"repl"`
 	Metrics              ServerMetrics       `metric:"metrics"`
 	WiredTiger           *WiredTigerInfo     `metric:"wiredTiger"`
+}
+
+func GetSession(mongoConfig Mongo, server string) (*mgo.Session, error) {
+	dialInfo := mgo.DialInfo{
+		Addrs:   []string{server},
+		Direct:  true,
+		Timeout: time.Second * 5,
+	}
+	if len(mongoConfig.User) > 0 {
+		dialInfo.Username = mongoConfig.User
+		dialInfo.Password = mongoConfig.Pass
+		dialInfo.Source = mongoConfig.AuthDb
+	}
+	return mgo.DialWithInfo(&dialInfo)
 }
 
 func GetServerStatus(session *mgo.Session) *ServerStatus {
