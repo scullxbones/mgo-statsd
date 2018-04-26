@@ -36,7 +36,7 @@ func main() {
 		defer session.Close()
 
 		ticker := time.NewTicker(config.Interval)
-		go func(server string, num int) {
+		go func(session *mgo.Session, server string, num int) {
 			for {
 				select {
 				case <-ticker.C:
@@ -55,7 +55,7 @@ func main() {
 					return
 				}
 			}
-		}(server, i)
+		}(session, server, i)
 	}
 	ch := make(chan os.Signal)
 	signal.Notify(ch, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT)
