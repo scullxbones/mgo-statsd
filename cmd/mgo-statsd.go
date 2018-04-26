@@ -19,7 +19,7 @@ func main() {
 		session, err := mstatsd.GetSession(config.Mongo, server)
 		if err != nil {
 			log.Printf("Error connecting to mongo %s: %v\n", server, err)
-			return
+			continue
 		}
 		defer session.Close()
 
