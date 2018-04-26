@@ -1,4 +1,4 @@
-package mstatsd
+package mgostatsd
 
 import (
 	"fmt"
@@ -402,6 +402,7 @@ func pushWTInfo(client statsd.Statter, wtinfo *WiredTigerInfo) error {
 	return nil
 }
 
+// PushStats pushes the metrics in the provided ServerStatus struct to StatsD
 func PushStats(statsdConfig Statsd, status *ServerStatus, verbose bool) error {
 	if status == nil {
 		return nil // This means we didn't connect, so lets silently skip this cycle

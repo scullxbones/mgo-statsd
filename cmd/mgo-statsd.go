@@ -7,16 +7,16 @@ import (
 	"syscall"
 	"time"
 
-	mstatsd "github.com/scullxbones/mgo-statsd"
+	mgostatsd "github.com/scullxbones/mgo-statsd"
 	"gopkg.in/mgo.v2"
 )
 
 func main() {
-	config := mstatsd.LoadConfig()
+	config := mgostatsd.LoadConfig()
 
 	quit := make(chan struct{})
 	for i, server := range config.Mongo.Addresses {
-		session, err := mstatsd.GetSession(config.Mongo, server)
+		session, err := mgostatsd.GetSession(config.Mongo, server)
 		if err != nil {
 			log.Printf("Error connecting to mongo %s: %v\n", server, err)
 			continue
@@ -31,7 +31,7 @@ func main() {
 					if config.Verbose {
 						log.Printf("[%v] Starting stats for address %v \n", num, server)
 					}
-					err := mstatsd.PushStats(config.Statsd, mstatsd.GetServerStatus(session), config.Verbose)
+					err := mgostatsd.PushStats(config.Statsd, mgostatsd.GetServerStatus(session), config.Verbose)
 					if err != nil {
 						log.Printf("[%v] ERROR: %v\n", num, err)
 					}

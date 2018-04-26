@@ -1,5 +1,6 @@
 mgo-statsd
 ==========
+[![](https://godoc.org/github.com/scullxbones/mgo-statsd?status.svg)](http://godoc.org/github.com/scullxbones/mgo-statsd) 
 [![Build Status](https://travis-ci.org/scullxbones/mgo-statsd.svg?branch=master)](https://travis-ci.org/scullxbones/mgo-statsd)
 
 Small go process which polls mongodb for server status shipping as metrics to statsd
@@ -46,3 +47,7 @@ Start the stack by running:
 $ docker-compose up
 ```
 Stop it by ```CTRL+C```'ing it. See Docker Compose docs for help operating the stack.
+
+### Code Documentation
+
+See [mgo-statsd Godoc](https://godoc.org/github.com/scullxbones/mgo-statsd) documentation.
