@@ -8,6 +8,7 @@ import (
 	"time"
 
 	mstatsd "github.com/scullxbones/mgo-statsd"
+	"gopkg.in/mgo.v2"
 )
 
 func main() {
@@ -15,33 +16,34 @@ func main() {
 
 	quit := make(chan struct{})
 	for i, server := range config.Mongo.Addresses {
-		mgocnf := mstatsd.Mongo{
-			Addresses: []string{server},
-			User:      config.Mongo.User,
-			Pass:      config.Mongo.Pass,
-			AuthDb:    config.Mongo.AuthDb,
+		session, err := mstatsd.GetSession(config.Mongo, server)
+		if err != nil {
+			log.Printf("Error connecting to mongo %s: %v\n", server, err)
+			continue
 		}
+		defer session.Close()
+
 		ticker := time.NewTicker(config.Interval)
-		go func(cnf mstatsd.Mongo, num int) {
+		go func(session *mgo.Session, server string, num int) {
 			for {
 				select {
 				case <-ticker.C:
 					if config.Verbose {
-						log.Printf("[%v] Starting stats for address %v \n", num, cnf.Addresses)
+						log.Printf("[%v] Starting stats for address %v \n", num, server)
 					}
-					err := mstatsd.PushStats(config.Statsd, mstatsd.GetServerStatus(cnf), config.Verbose)
+					err := mstatsd.PushStats(config.Statsd, mstatsd.GetServerStatus(session), config.Verbose)
 					if err != nil {
 						log.Printf("[%v] ERROR: %v\n", num, err)
 					}
 					if config.Verbose {
-						log.Printf("[%v] Done pushing stats for address %v\n", num, cnf.Addresses)
+						log.Printf("[%v] Done pushing stats for address %v\n", num, server)
 					}
 				case <-quit:
 					ticker.Stop()
 					return
 				}
 			}
-		}(mgocnf, i)
+		}(session, server, i)
 	}
 	ch := make(chan os.Signal)
 	signal.Notify(ch, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT)

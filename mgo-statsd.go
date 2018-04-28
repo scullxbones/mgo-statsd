@@ -107,42 +107,39 @@ type ServerStatus struct {
 	WiredTiger           *WiredTigerInfo     `metric:"wiredTiger"`
 }
 
-func GetServerStatus(mongoConfig Mongo) ServerStatus {
-	info := mgo.DialInfo{
-		Addrs:   mongoConfig.Addresses,
+// GetSession creates and configures a new mgo.Session
+func GetSession(mongoConfig Mongo, server string) (*mgo.Session, error) {
+	dialInfo := mgo.DialInfo{
+		Addrs:   []string{server},
 		Direct:  true,
 		Timeout: time.Second * 5,
 	}
-
 	if len(mongoConfig.User) > 0 {
-		info.Username = mongoConfig.User
-		info.Password = mongoConfig.Pass
-		info.Source = mongoConfig.AuthDb
+		dialInfo.Username = mongoConfig.User
+		dialInfo.Password = mongoConfig.Pass
+		dialInfo.Source = mongoConfig.AuthDb
 	}
-
-	session, err := mgo.DialWithInfo(&info)
+	session, err := mgo.DialWithInfo(&dialInfo)
 	if err != nil {
-		log.Printf("Error connecting to mongo %v: %v\n", info, err)
-		return ServerStatus{}
+		return nil, err
 	}
-	defer session.Close()
-
-	/*if len(mongo_config.User) > 0 {
-		cred := mgo.Credential{Username: mongo_config.User, Password: mongo_config.Pass, Source: mongo_config.AuthDb}
-		err = session.Login(&cred)
-		if err != nil {
-			panic(err)
-		}
-	}*/
 
 	// Optional. Switch the session to a monotonic behavior.
 	session.SetMode(mgo.Monotonic, true)
 
-	var s ServerStatus
+	return session, nil
+}
+
+// GetServerStatus returns a struct of the MongoDB 'serverStatus' command response
+func GetServerStatus(session *mgo.Session) *ServerStatus {
+	if session == nil {
+		return nil
+	}
+
+	var s *ServerStatus
 	if err := session.Run("serverStatus", &s); err != nil {
-		log.Printf("Error connecting to %v: %v\n", info, err)
-		//panic(err)
-		return ServerStatus{}
+		log.Printf("Error running 'serverStatus' command: %v\n", err)
+		return s
 	}
 	return s
 }
@@ -405,8 +402,8 @@ func pushWTInfo(client statsd.Statter, wtinfo *WiredTigerInfo) error {
 	return nil
 }
 
-func PushStats(statsdConfig Statsd, status ServerStatus, verbose bool) error {
-	if status.Host == "" {
+func PushStats(statsdConfig Statsd, status *ServerStatus, verbose bool) error {
+	if status == nil {
 		return nil // This means we didn't connect, so lets silently skip this cycle
 	}
 	prefix := statsdConfig.Env
