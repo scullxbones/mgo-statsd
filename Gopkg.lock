@@ -9,6 +9,12 @@
 
 [[projects]]
   branch = "master"
+  name = "github.com/hashicorp/go-version"
+  packages = ["."]
+  revision = "23480c0665776210b5fbbac6eaaee40e3e6a96b7"
+
+[[projects]]
+  branch = "master"
   name = "github.com/kr/pretty"
   packages = ["."]
   revision = "cfb55aafdaf3ec08f0db22699ab822c50091b1c4"
@@ -18,6 +24,12 @@
   name = "github.com/kr/text"
   packages = ["."]
   revision = "7cafcd837844e784b526369c9bce262804aebc60"
+
+[[projects]]
+  branch = "master"
+  name = "github.com/timvaillancourt/go-mongodb-fixtures"
+  packages = ["."]
+  revision = "5e5f56b3c3f60726d9efacf0e482c37737b1529f"
 
 [[projects]]
   branch = "master"
@@ -40,6 +52,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "b685cdc84ea1a61685a32f0db73a4bd97106615c21315f0c10dd6dc9ecf720f7"
+  inputs-digest = "30e117f0ccfc383fe6c29772cab675a2946405723d1478a502396fce0fcb1b89"
   solver-name = "gps-cdcl"
   solver-version = 1
