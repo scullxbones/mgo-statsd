@@ -10,5 +10,8 @@ go_is_not_installed=`which go`
 # install the deps.  should use a build tool...
 dep ensure
 
+# run go tests
+go test -v ./...
+
 # now build it
 go build cmd/mgo-statsd.go
