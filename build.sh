@@ -1,4 +1,21 @@
-#!/bin/sh
+#!/bin/bash
+
+# strip debugging info from binary 
+GO_LDFLAGS="-w -s"
+
+while getopts ":d" opt; do
+	case ${opt} in
+	d)
+		GO_LDFLAGS=""
+		;;
+	\?)
+		echo "Usage $0 [flags]
+	-h  Print Help
+	-d  Enable debugging symbols in binary"
+		exit
+		;;
+	esac
+done
 
 # Is go installed?
 go_is_not_installed=`which go`
@@ -14,4 +31,4 @@ dep ensure
 go test -v ./...
 
 # now build it
-go build cmd/mgo-statsd.go
+CGO_ENABLED=0 go build -ldflags="${GO_LDFLAGS}" cmd/mgo-statsd.go
