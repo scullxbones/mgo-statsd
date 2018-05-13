@@ -7,6 +7,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/kr/pretty"
 	mgostatsd "github.com/scullxbones/mgo-statsd"
 	"gopkg.in/mgo.v2"
 )
@@ -31,7 +32,17 @@ func main() {
 					if config.Verbose {
 						log.Printf("[%v] Starting stats for address %v \n", num, server)
 					}
-					err := mgostatsd.PushStats(config.Statsd, mgostatsd.GetServerStatus(session), config.Verbose)
+
+					status, err := mgostatsd.GetServerStatus(session)
+					if err != nil {
+						log.Printf("Error running 'serverStatus' command: %v\n", err)
+						continue
+					}
+					if config.Verbose {
+						log.Println(pretty.Sprintf("Mongo ServerStatus: \n%v\n", status))
+					}
+
+					err = mgostatsd.PushStats(config.Statsd, status, config.Verbose)
 					if err != nil {
 						log.Printf("[%v] ERROR: %v\n", num, err)
 					}

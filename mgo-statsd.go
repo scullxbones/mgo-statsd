@@ -2,13 +2,11 @@ package mgostatsd
 
 import (
 	"fmt"
-	"log"
 	"regexp"
 	str "strings"
 	"time"
 
 	"github.com/cactus/go-statsd-client/statsd"
-	"github.com/kr/pretty"
 	"gopkg.in/mgo.v2"
 	"gopkg.in/mgo.v2/bson"
 )
@@ -131,17 +129,10 @@ func GetSession(mongoConfig Mongo, server string) (*mgo.Session, error) {
 }
 
 // GetServerStatus returns a struct of the MongoDB 'serverStatus' command response
-func GetServerStatus(session *mgo.Session) *ServerStatus {
-	if session == nil {
-		return nil
-	}
-
+func GetServerStatus(session *mgo.Session) (*ServerStatus, error) {
 	var s *ServerStatus
-	if err := session.Run("serverStatus", &s); err != nil {
-		log.Printf("Error running 'serverStatus' command: %v\n", err)
-		return s
-	}
-	return s
+	err := session.Run("serverStatus", &s)
+	return s, err
 }
 
 func pushConnections(client statsd.Statter, connections Connections) error {
@@ -365,7 +356,6 @@ func pushWTInfo(client statsd.Statter, wtinfo *WiredTigerInfo) error {
 	if wtinfo == nil {
 		return nil // WiredTiger not enabled
 	}
-	log.Println("WiredTiger data present!")
 	for k, v := range wtinfo.Cache {
 		cleanKey := badMetricChars.ReplaceAllLiteralString(k, "_") //str.Replace(k," ","_",-1)
 		err = client.Gauge(fmt.Sprintf("wiredtiger.cache.%s", cleanKey), v, 1.0)
@@ -418,10 +408,6 @@ func PushStats(statsdConfig Statsd, status *ServerStatus, verbose bool) error {
 		return err
 	}
 	defer client.Close()
-	//log.Printf("Statsd Env: %v, Statsd Cluster: %v, Statsd prefix: %v\n",statsd_config.Env, statsd_config.Cluster, prefix)
-	if verbose {
-		log.Println(pretty.Sprintf("Mongo ServerStatus: \n%v\n", status))
-	}
 
 	err = pushConnections(client, status.Connections)
 	if err != nil {
