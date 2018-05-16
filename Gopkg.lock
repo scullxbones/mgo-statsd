@@ -29,7 +29,7 @@
   branch = "master"
   name = "github.com/timvaillancourt/go-mongodb-fixtures"
   packages = ["."]
-  revision = "5e5f56b3c3f60726d9efacf0e482c37737b1529f"
+  revision = "d00442b56884ed1a8288cc23bb5ae7b602ef79a9"
 
 [[projects]]
   branch = "master"

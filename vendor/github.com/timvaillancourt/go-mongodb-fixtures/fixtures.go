@@ -4,22 +4,22 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"runtime"
 
 	version "github.com/hashicorp/go-version"
 	"gopkg.in/mgo.v2/bson"
 )
 
-var fixturesDir = filepath.Join(
-	os.Getenv("GOPATH"),
-	"src",
-	"github.com",
-	"timvaillancourt",
-	"go-mongodb-fixtures",
-	"versions",
-)
+func VersionsDir() string {
+	_, filename, _, ok := runtime.Caller(0)
+	if !ok {
+		return ""
+	}
+	return filepath.Join(filepath.Dir(filename), "versions")
+}
 
 func Load(versionStr, command string, out interface{}) error {
-	filePath := filepath.Join(fixturesDir, versionStr, command+".bson")
+	filePath := filepath.Join(VersionsDir(), versionStr, command+".bson")
 	bytes, err := ioutil.ReadFile(filePath)
 	if err != nil {
 		return err
@@ -28,7 +28,7 @@ func Load(versionStr, command string, out interface{}) error {
 }
 
 func Write(versionStr, command string, data []byte) error {
-	versionDir := filepath.Join(fixturesDir, versionStr)
+	versionDir := filepath.Join(VersionsDir(), versionStr)
 	if _, err := os.Stat(versionDir); os.IsNotExist(err) {
 		err = os.Mkdir(versionDir, 0755)
 		if err != nil {
@@ -41,7 +41,7 @@ func Write(versionStr, command string, data []byte) error {
 
 func Versions() []string {
 	var versions []string
-	subdirs, err := ioutil.ReadDir(fixturesDir)
+	subdirs, err := ioutil.ReadDir(VersionsDir())
 	if err != nil {
 		return versions
 	}
